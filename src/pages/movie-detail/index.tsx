@@ -27,7 +27,7 @@ const MovieDetailPage: React.FC = () => {
         setMovie(foundMovie);
       }
     }
-  }, []);
+  }, [movies]);
 
   const getMovieTypeName = (type: string) => {
     const typeMap = {
@@ -70,6 +70,13 @@ const MovieDetailPage: React.FC = () => {
           }, 1500);
         }
       }
+    });
+  };
+
+  const handlePreviewPhoto = (urls: string[], current: number) => {
+    Taro.previewImage({
+      urls,
+      current: urls[current]
     });
   };
 
@@ -138,7 +145,11 @@ const MovieDetailPage: React.FC = () => {
           {movie.photos.length > 0 ? (
             <View className={styles.photosGrid}>
               {movie.photos.map((photo, idx) => (
-                <View key={idx} className={styles.photoItem}>
+                <View
+                  key={idx}
+                  className={styles.photoItem}
+                  onClick={() => handlePreviewPhoto(movie.photos, idx)}
+                >
                   <Image src={photo} mode="aspectFill" />
                 </View>
               ))}

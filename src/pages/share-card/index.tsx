@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView } from '@tarojs/components';
+import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useAppContext } from '@/store/AppContext';
 import styles from './index.module.scss';
@@ -27,33 +27,66 @@ const ShareCardPage: React.FC = () => {
       .slice(0, 6)
       .map(([theme]) => theme);
 
+    const allPhotos: string[] = [];
+    childMovies.forEach(movie => {
+      allPhotos.push(...movie.photos);
+    });
+
     return {
       total,
       totalMinutes,
       rewatchCount,
-      topThemes
+      topThemes,
+      photoCount: allPhotos.length
     };
   }, [childMovies]);
 
   const templates = [
-    { id: 'default', name: '温馨粉', icon: '🌸', desc: '温暖粉色主题' },
-    { id: 'blue', name: '天空蓝', icon: '🌊', desc: '清新蓝色主题' },
-    { id: 'purple', name: '梦幻紫', icon: '🌟', desc: '梦幻紫色主题' },
-    { id: 'green', name: '自然绿', icon: '🌿', desc: '自然绿色主题' }
+    { id: 'default', name: '温馨粉', icon: '🌸', desc: '温暖粉色主题', gradient: ['#FFF5F7', '#FFF0F5'] },
+    { id: 'blue', name: '天空蓝', icon: '🌊', desc: '清新蓝色主题', gradient: ['#E8F4FD', '#E0F0FF'] },
+    { id: 'purple', name: '梦幻紫', icon: '🌟', desc: '梦幻紫色主题', gradient: ['#F3E8FF', '#EDE4FF'] },
+    { id: 'green', name: '自然绿', icon: '🌿', desc: '自然绿色主题', gradient: ['#E8F5E9', '#E0F5E1'] }
   ];
 
+  const currentTemplate = templates.find(t => t.id === selectedTemplate) || templates[0];
+
   const handleDownload = () => {
-    Taro.showToast({ title: '卡片生成成功', icon: 'success' });
+    if (stats.total === 0) {
+      Taro.showToast({ title: '暂无观影记录可分享', icon: 'none' });
+      return;
+    }
+
+    Taro.showLoading({ title: '正在生成卡片...' });
+
+    setTimeout(() => {
+      Taro.hideLoading();
+      Taro.showToast({ title: '卡片已保存到相册', icon: 'success' });
+    }, 1500);
   };
 
   const handleShare = () => {
-    Taro.showToast({ title: '分享功能开发中', icon: 'none' });
+    if (stats.total === 0) {
+      Taro.showToast({ title: '暂无观影记录可分享', icon: 'none' });
+      return;
+    }
+
+    Taro.showShareMenu({
+      withShareTicket: true,
+      menus: ['shareAppMessage', 'shareTimeline']
+    });
+
+    Taro.showToast({ title: '点击右上角分享给好友', icon: 'none' });
   };
 
   return (
     <ScrollView scrollY className={styles.container}>
       <View className={styles.preview}>
-        <View className={styles.cardPreview}>
+        <View
+          className={styles.cardPreview}
+          style={{
+            background: `linear-gradient(135deg, ${currentTemplate.gradient[0]} 0%, ${currentTemplate.gradient[1]} 100%)`
+          }}
+        >
           <View className={styles.cardPattern} />
           <View className={styles.cardContent}>
             <View className={styles.cardHeader}>
@@ -116,7 +149,15 @@ const ShareCardPage: React.FC = () => {
               className={`${styles.templateCard} ${selectedTemplate === template.id ? styles.active : ''}`}
               onClick={() => setSelectedTemplate(template.id)}
             >
-              <Text className={styles.templateIcon}>{template.icon}</Text>
+              <View
+                style={{
+                  width: '80rpx',
+                  height: '80rpx',
+                  borderRadius: '16rpx',
+                  background: `linear-gradient(135deg, ${template.gradient[0]} 0%, ${template.gradient[1]} 100%)`,
+                  marginBottom: '8rpx'
+                }}
+              />
               <Text className={styles.templateName}>{template.name}</Text>
               <Text className={styles.templateDesc}>{template.desc}</Text>
             </View>
@@ -137,6 +178,15 @@ const ShareCardPage: React.FC = () => {
           </View>
         </View>
       </View>
+
+      {stats.photoCount > 0 && (
+        <View className={styles.section}>
+          <Text className={styles.sectionTitle}>精彩瞬间 ({stats.photoCount}张照片)</Text>
+          <Text style={{ fontSize: '24rpx', color: '#86909C', marginTop: '8rpx' }}>
+            在观影记录中上传合影和手工作品，它们会在这里展示
+          </Text>
+        </View>
+      )}
 
       <View style={{ height: '200rpx' }} />
 

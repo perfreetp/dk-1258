@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Switch } from '@tarojs/components';
+import { View, Text } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useAppContext } from '@/store/AppContext';
 import styles from './index.module.scss';
@@ -7,6 +7,7 @@ import styles from './index.module.scss';
 const MinePage: React.FC = () => {
   const { currentChild, children, settings, updateSettings, movies } = useAppContext();
   const [watchTimeReminder, setWatchTimeReminder] = useState(settings.watchTimeReminder.enabled);
+  const [maxDuration, setMaxDuration] = useState(settings.watchTimeReminder.maxDuration);
   const [familyOnly, setFamilyOnly] = useState(settings.privacySettings.familyOnlyVisible);
 
   const childMovieCount = movies.filter(m => m.childId === currentChild?.id).length;
@@ -23,6 +24,10 @@ const MinePage: React.FC = () => {
         enabled: value
       }
     });
+    Taro.showToast({
+      title: value ? '提醒已开启' : '提醒已关闭',
+      icon: 'success'
+    });
   };
 
   const handleToggleFamilyOnly = (value: boolean) => {
@@ -31,6 +36,41 @@ const MinePage: React.FC = () => {
       privacySettings: {
         ...settings.privacySettings,
         familyOnlyVisible: value
+      }
+    });
+    Taro.showToast({
+      title: value ? '家庭可见已开启' : '家庭可见已关闭',
+      icon: 'success'
+    });
+  };
+
+  const handleSetMaxDuration = () => {
+    Taro.showModal({
+      title: '设置提醒时长',
+      editable: true,
+      placeholderText: '请输入时长（分钟）',
+      success: (res) => {
+        if (res.confirm && res.content) {
+          const duration = parseInt(res.content);
+          if (duration > 0 && duration <= 300) {
+            setMaxDuration(duration);
+            updateSettings({
+              watchTimeReminder: {
+                ...settings.watchTimeReminder,
+                maxDuration: duration
+              }
+            });
+            Taro.showToast({
+              title: `已设置${duration}分钟`,
+              icon: 'success'
+            });
+          } else {
+            Taro.showToast({
+              title: '请输入1-300之间的数字',
+              icon: 'none'
+            });
+          }
+        }
       }
     });
   };
@@ -92,15 +132,33 @@ const MinePage: React.FC = () => {
                 <Text className={styles.labelIcon}>⏰</Text>
                 观看时长提醒
               </Text>
-              <Text className={styles.settingDesc}>单次观看超过60分钟提醒休息</Text>
+              <Text className={styles.settingDesc}>
+                单次观看超过{maxDuration}分钟提醒休息
+              </Text>
             </View>
             <View
               className={`${styles.toggle} ${watchTimeReminder ? styles.active : ''}`}
               onClick={() => handleToggleWatchTime(!watchTimeReminder)}
-            >
-              {/* <Switch checked={watchTimeReminder} onChange={(e) => handleToggleWatchTime(e.detail.value)} color="#FF6B9D" /> */}
-            </View>
+            />
           </View>
+          {watchTimeReminder && (
+            <View
+              className={styles.settingItem}
+              style={{ marginTop: '16rpx' }}
+              onClick={handleSetMaxDuration}
+            >
+              <View>
+                <Text className={styles.settingLabel}>
+                  <Text className={styles.labelIcon}>⚙️</Text>
+                  提醒时长上限
+                </Text>
+                <Text className={styles.settingDesc}>
+                  当前设定: {maxDuration}分钟
+                </Text>
+              </View>
+              <Text style={{ color: '#FF6B9D', fontSize: '28rpx' }}>点击修改 →</Text>
+            </View>
+          )}
         </View>
 
         <View className={styles.settingsSection}>
@@ -116,9 +174,7 @@ const MinePage: React.FC = () => {
             <View
               className={`${styles.toggle} ${familyOnly ? styles.active : ''}`}
               onClick={() => handleToggleFamilyOnly(!familyOnly)}
-            >
-              {/* <Switch checked={familyOnly} onChange={(e) => handleToggleFamilyOnly(e.detail.value)} color="#FF6B9D" /> */}
-            </View>
+            />
           </View>
         </View>
 

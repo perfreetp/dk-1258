@@ -6,7 +6,9 @@ import { Movie } from '@/types';
 import styles from './index.module.scss';
 
 const AddMoviePage: React.FC = () => {
-  const { addMovie, updateMovie, movies, currentChild } = useAppContext();
+  const { addMovie, updateMovie, movies, currentChild, settings } = useAppContext();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingMovieId, setEditingMovieId] = useState<string>('');
   const [formData, setFormData] = useState({
     title: '',
     type: 'animation' as 'animation' | 'documentary' | 'family_movie',
@@ -43,6 +45,8 @@ const AddMoviePage: React.FC = () => {
     if (options.movieId) {
       const movie = movies.find(m => m.id === options.movieId);
       if (movie) {
+        setIsEditing(true);
+        setEditingMovieId(movie.id);
         setFormData({
           title: movie.title,
           type: movie.type,
@@ -60,7 +64,7 @@ const AddMoviePage: React.FC = () => {
         });
       }
     }
-  }, []);
+  }, [movies]);
 
   const handleSubmit = () => {
     if (!formData.title.trim()) {
@@ -80,30 +84,70 @@ const AddMoviePage: React.FC = () => {
       return;
     }
 
-    const movieData: Movie = {
-      id: `movie_${Date.now()}`,
-      childId: currentChild?.id || '',
-      title: formData.title,
-      poster: 'https://picsum.photos/id/292/300/400',
-      type: formData.type,
-      watchDate: formData.watchDate,
-      ageRating: formData.ageRating,
-      duration: Number(formData.duration),
-      rating: 4.5,
-      review: '',
-      reaction: formData.reaction,
-      educationThemes: formData.educationThemes,
-      hasRewatch: formData.hasRewatch,
-      rewatchCount: formData.hasRewatch ? 1 : 0,
-      photos: formData.photos,
-      isHoliday: formData.isHoliday,
-      holidayName: formData.isHoliday ? formData.holidayName : undefined,
-      familyRating: formData.familyRating,
-      createdAt: new Date().toISOString()
-    };
+    const duration = Number(formData.duration);
+    if (settings.watchTimeReminder.enabled && duration > settings.watchTimeReminder.maxDuration) {
+      Taro.showModal({
+        title: '时长提醒',
+        content: `影片时长${duration}分钟，超过您设定的${settings.watchTimeReminder.maxDuration}分钟提醒值，是否继续保存？`,
+        success: (res) => {
+          if (res.confirm) {
+            saveMovie(duration);
+          }
+        }
+      });
+    } else {
+      saveMovie(duration);
+    }
+  };
 
-    addMovie(movieData);
-    Taro.showToast({ title: '添加成功', icon: 'success' });
+  const saveMovie = (duration: number) => {
+    if (isEditing && editingMovieId) {
+      const existingMovie = movies.find(m => m.id === editingMovieId);
+      if (existingMovie) {
+        const updatedMovie: Movie = {
+          ...existingMovie,
+          title: formData.title,
+          type: formData.type,
+          watchDate: formData.watchDate,
+          ageRating: formData.ageRating,
+          duration: duration,
+          reaction: formData.reaction,
+          familyRating: formData.familyRating,
+          hasRewatch: formData.hasRewatch,
+          rewatchCount: formData.hasRewatch ? (formData.rewatchCount || 1) : 0,
+          educationThemes: formData.educationThemes,
+          photos: formData.photos,
+          isHoliday: formData.isHoliday,
+          holidayName: formData.isHoliday ? formData.holidayName : undefined
+        };
+        updateMovie(updatedMovie);
+        Taro.showToast({ title: '修改成功', icon: 'success' });
+      }
+    } else {
+      const movieData: Movie = {
+        id: `movie_${Date.now()}`,
+        childId: currentChild?.id || '',
+        title: formData.title,
+        poster: 'https://picsum.photos/id/292/300/400',
+        type: formData.type,
+        watchDate: formData.watchDate,
+        ageRating: formData.ageRating,
+        duration: duration,
+        rating: 4.5,
+        review: '',
+        reaction: formData.reaction,
+        educationThemes: formData.educationThemes,
+        hasRewatch: formData.hasRewatch,
+        rewatchCount: formData.hasRewatch ? 1 : 0,
+        photos: formData.photos,
+        isHoliday: formData.isHoliday,
+        holidayName: formData.isHoliday ? formData.holidayName : undefined,
+        familyRating: formData.familyRating,
+        createdAt: new Date().toISOString()
+      };
+      addMovie(movieData);
+      Taro.showToast({ title: '添加成功', icon: 'success' });
+    }
 
     setTimeout(() => {
       Taro.navigateBack();
@@ -117,6 +161,20 @@ const AddMoviePage: React.FC = () => {
         ? prev.educationThemes.filter(t => t !== theme)
         : [...prev.educationThemes, theme]
     }));
+  };
+
+  const handleAddPhoto = () => {
+    Taro.chooseImage({
+      count: 9 - formData.photos.length,
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        setFormData(prev => ({
+          ...prev,
+          photos: [...prev.photos, ...res.tempFilePaths]
+        }));
+      }
+    });
   };
 
   return (
@@ -267,23 +325,31 @@ const AddMoviePage: React.FC = () => {
       </View>
 
       <View className={styles.formSection}>
-        <Text className={styles.sectionTitle}>合影与作品</Text>
+        <Text className={styles.sectionTitle}>合影与作品 ({formData.photos.length}/9)</Text>
         <View className={styles.photoGrid}>
           {formData.photos.map((photo, idx) => (
             <View key={idx} className={styles.photoItem}>
-              <Text style={{ fontSize: '24rpx' }}>📷</Text>
+              <View style={{ width: '100%', height: '100%', borderRadius: '12rpx', overflow: 'hidden' }}>
+                <View style={{ width: '100%', height: '100%', background: '#F0F0F0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: '24rpx' }}>📷</Text>
+                </View>
+              </View>
             </View>
           ))}
-          <View className={styles.photoItem}>+</View>
+          {formData.photos.length < 9 && (
+            <View className={styles.photoItem} onClick={handleAddPhoto}>+</View>
+          )}
         </View>
-        <View className={styles.addPhotoBtn}>添加照片或作品</View>
+        <View className={styles.addPhotoBtn} onClick={handleAddPhoto}>
+          添加照片或作品
+        </View>
       </View>
 
       <View style={{ height: '200rpx' }} />
 
       <View className={styles.bottomBar}>
         <View className={styles.submitBtn} onClick={handleSubmit}>
-          保存观影记录
+          {isEditing ? '保存修改' : '保存观影记录'}
         </View>
       </View>
     </ScrollView>

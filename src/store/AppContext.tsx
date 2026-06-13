@@ -20,11 +20,12 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [childrenList, setChildrenList] = useState<Child[]>(mockChildren);
-  const [currentChild, setCurrentChildState] = useState<Child | null>(mockChildren[0] || null);
-  const [movies, setMovies] = useState<Movie[]>(mockMovies);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [childrenList, setChildrenList] = useState<Child[]>([]);
+  const [currentChild, setCurrentChildState] = useState<Child | null>(null);
+  const [movies, setMovies] = useState<Movie[]>([]);
   const [settings, setSettings] = useState<AppSettings>({
-    currentChildId: mockChildren[0]?.id || '',
+    currentChildId: '',
     watchTimeReminder: {
       enabled: true,
       maxDuration: 60,
@@ -37,19 +38,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    try {
-      const storageData = Taro.getStorageSync('appData');
-      if (storageData) {
-        const parsed = JSON.parse(storageData);
-        setChildrenList(parsed.children || mockChildren);
-        setMovies(parsed.movies || mockMovies);
-        setSettings(parsed.settings || settings);
-        const current = parsed.children?.find((c: Child) => c.id === parsed.settings?.currentChildId);
-        setCurrentChildState(current || parsed.children?.[0] || null);
+    const loadData = () => {
+      try {
+        const storageData = Taro.getStorageSync('appData');
+        if (storageData) {
+          const parsed = JSON.parse(storageData);
+          const loadedChildren = parsed.children || mockChildren;
+          const loadedMovies = parsed.movies || mockMovies;
+          const loadedSettings = parsed.settings || {
+            currentChildId: '',
+            watchTimeReminder: {
+              enabled: true,
+              maxDuration: 60,
+              showNotification: true
+            },
+            privacySettings: {
+              familyOnlyVisible: true,
+              shareEnabled: true
+            }
+          };
+
+          setChildrenList(loadedChildren);
+          setMovies(loadedMovies);
+          setSettings(loadedSettings);
+
+          const current = loadedChildren.find((c: Child) => c.id === loadedSettings.currentChildId)
+            || loadedChildren[0]
+            || null;
+          setCurrentChildState(current);
+        } else {
+          setChildrenList(mockChildren);
+          setMovies(mockMovies);
+          setSettings({
+            currentChildId: mockChildren[0]?.id || '',
+            watchTimeReminder: {
+              enabled: true,
+              maxDuration: 60,
+              showNotification: true
+            },
+            privacySettings: {
+              familyOnlyVisible: true,
+              shareEnabled: true
+            }
+          });
+          setCurrentChildState(mockChildren[0] || null);
+          Taro.setStorageSync('appData', JSON.stringify({
+            children: mockChildren,
+            movies: mockMovies,
+            settings: {
+              currentChildId: mockChildren[0]?.id || '',
+              watchTimeReminder: {
+                enabled: true,
+                maxDuration: 60,
+                showNotification: true
+              },
+              privacySettings: {
+                familyOnlyVisible: true,
+                shareEnabled: true
+              }
+            }
+          }));
+        }
+      } catch (error) {
+        console.error('[AppContext] Failed to load storage:', error);
+        setChildrenList(mockChildren);
+        setMovies(mockMovies);
+        setCurrentChildState(mockChildren[0] || null);
       }
-    } catch (error) {
-      console.error('[AppContext] Failed to load storage:', error);
-    }
+      setIsInitialized(true);
+    };
+
+    loadData();
   }, []);
 
   const saveToStorage = (newChildren: Child[], newMovies: Movie[], newSettings: AppSettings) => {
@@ -106,6 +165,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSettings(updated);
     saveToStorage(childrenList, movies, updated);
   };
+
+  if (!isInitialized) {
+    return null;
+  }
 
   return (
     <AppContext.Provider

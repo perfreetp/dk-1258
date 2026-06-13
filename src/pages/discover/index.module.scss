@@ -29,19 +29,33 @@
   margin-bottom: $spacing-lg;
 }
 
-.themeGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+.themeFilter {
+  display: flex;
   gap: $spacing-sm;
+  overflow-x: auto;
+  @include scroll-x-container;
+  padding-bottom: $spacing-sm;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .themeCard {
+  flex-shrink: 0;
   background: $color-bg-card;
   border-radius: $radius-lg;
   padding: $spacing-md;
   text-align: center;
   box-shadow: $shadow-card;
   transition: all $transition-base;
+  min-width: 160rpx;
+  border: 4rpx solid transparent;
+
+  &.active {
+    border-color: $color-primary;
+    background: rgba($color-primary, 0.05);
+  }
 
   &:active {
     transform: scale(0.98);
@@ -54,7 +68,7 @@
   }
 
   .themeName {
-    font-size: $font-size-md;
+    font-size: $font-size-sm;
     font-weight: $font-weight-semibold;
     color: $color-text-primary;
     margin-bottom: 4rpx;
